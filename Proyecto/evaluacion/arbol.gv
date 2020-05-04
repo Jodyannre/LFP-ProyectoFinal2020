@@ -1,0 +1,19 @@
+digraph A{ 
+n9;
+n9 [label="S"] ;
+n9->n10
+n10 [label="C"] ;
+n10->n11
+n11 [label="c"] ;
+n10->n12
+n12 [label="c"] ;
+n10->n13
+n13 [label="B"] ;
+n10->n14
+n14 [label="b"] ;
+n13->n15
+n15 [label="b"] ;
+n13->n16
+n16 [label="c"] ;
+
+}

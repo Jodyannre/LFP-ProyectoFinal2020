@@ -343,8 +343,12 @@ class GramaticaE(object):
         __________________________________________________________________________________
         ''' 
         lista = []
-        for i in hijos:
-            lista.append(self.getNodo(i))
+        for i in range(len(hijos)):
+            if hijos[len(hijos)-1]=="'" and i == (len(hijos)-2):
+                lista.append(self.getNodo(hijos[i:]))
+                return lista
+            else:
+                lista.append(self.getNodo(hijos[i]))
         return lista
             
     def getNodo(self,valor):
@@ -411,24 +415,52 @@ class GramaticaE(object):
         __________________________________________________________________________________
         '''
         self.nombre = nombre
-        for i in lista:
-            self.producciones.append(i)
-            i = i.split(">")
-            padre = i[0]
-            hijo = i[1]
+        lista = self.eliminarRecursividad2(lista)
+        for i in range(len(lista)):
+            self.producciones.append(lista[i])
+            #print(lista[i])
+            j = lista[i].split(">")
+            padre = j[0]
+            hijo = j[1]
+            nuevo = hijo[len(hijo)-2]+"'"
+            hijoTemp = ""
+            if "'" in hijo:
+                if not self.repetido(0,nuevo):
+                    self.nt.append(NodoL(nuevo,Tipo.NOTERMINAL))
+                hijoTemp = hijo[0:len(hijo)-2]
+                
             if not self.repetido(0,padre):
                 self.nt.append(NodoL(padre,Tipo.NOTERMINAL))
-            for j in hijo:
-                nodo = self.getNodo(j)
-                if nodo==False and not j.isupper():
-                    self.terminales.append(NodoL(j,Tipo.TERMINAL))
-                elif j.isupper():
+            
+            if not "epsilon" in hijo and not "'" in hijo:
+                
+                for j in hijo:
                     nodo = self.getNodo(j)
-                    if nodo == False:
-                        self.nt.append(NodoL(j,Tipo.NOTERMINAL))
+                    if nodo==False and not j.isupper():
+                        self.terminales.append(NodoL(j,Tipo.TERMINAL))
+                    elif j.isupper():
+                        nodo = self.getNodo(j)
+                        if nodo == False:
+                            self.nt.append(NodoL(j,Tipo.NOTERMINAL))                
+            elif "'" in hijo:
+                
+                for j in hijoTemp:
+                    nodo = self.getNodo(j)
+                    if nodo==False and not j.isupper():
+                        self.terminales.append(NodoL(j,Tipo.TERMINAL))
+                    elif j.isupper():
+                        nodo = self.getNodo(j)
+                        if nodo == False:
+                            self.nt.append(NodoL(j,Tipo.NOTERMINAL))
+            else:
+                if not self.repetido(0,"epsilon"):
+                    self.nt.append(NodoL(hijo,Tipo.EPSILON))
+
             try:
-                if len(hijo)>1:
+                if len(hijo)>1 and not "epsilon" in hijo:
                     self.getNodo(padre).agregarHijo(self.listaHijos(hijo))
+                elif len(hijo)>1 and "epsilon" in hijo:
+                    self.getNodo(padre).agregarHijo([self.getNodo(hijo)])
                 else:
                     self.getNodo(padre).agregarHijo([self.getNodo(hijo)])
             except ValueError as er:
@@ -439,7 +471,8 @@ class GramaticaE(object):
         #for i in self.nt:
             #print(i.getValor())
         #print (self.producciones)
-        self.ntInicial = self.nt[0]
+        #print(lista[0][0])
+        self.ntInicial = self.getNt(lista[0][0])
     
     def getInicial(self):
         '''
@@ -455,14 +488,103 @@ class GramaticaE(object):
         '''
         return self.ntInicial
         
+    def eliminarRecursividad2(self, lista):
+        '''
+        __________________________________________________________________________________      
+        ► Descripción: 
         
-                    
-                    
-                    
-            
-            
-        
-        
-        
+        → Método que elimina la recursividad por izquierda             
+        __________________________________________________________________________________    
+        ► Parámetros:                                                                      
+                                                                                          
+        • lista: Lista de producciones.          
+        __________________________________________________________________________________
+        '''
+        # 0 = Transición sin recursividad
+        # 1 = Transición con recursividad
+        nLista = []
+        ConR = []
+        SinR = []
+        leido = []
+        padre = ""
+        padres = ""
+        hijo = ""
+        validar = False
+        while True:
+            validar = False
+            padre = ""
+            hijo = ""
+            for i in lista:
+                repetido = False
+                i = i.replace(" ","")
+                for j in leido:
+                    if j == i:
+                        repetido = True
+                        break
+                if padre == "" and not repetido and i[0] not in padres:
+                    validar = True
+                    j = i.split(">")
+                    padre = j[0]
+                    padres = padres+padre
+                    hijo = j[1]
+                    leido.append(i)
+                    if hijo[0].isupper() and hijo[0]==padre:
+                        ConR.append(hijo[1:])
+                    else:
+                        SinR.append(hijo)
+                elif padre != "" and padre==i[0] and not repetido:
+                    validar = True
+                    j = i.split(">")
+                    hijo = j[1]
+                    if hijo[0].isupper() and hijo[0]==padre:
+                        ConR.append(hijo[1:])
+                    else:
+                        SinR.append(hijo)
+                else:
+                    continue
+            if not validar:
+                break
+            if len(ConR) > 0:
+                nPadre = padre+"'"
+                for i in SinR:
+                    nLista.append(padre+">"+i+nPadre)
+                for i in ConR:
+                    nLista.append(nPadre+">"+i+nPadre)
+                nLista.append(nPadre+">"+"epsilon")
+                ConR = []
+                SinR = []
+            else:
+                for i in SinR:
+                    nLista.append(padre+">"+i)
+                SinR = []
+            repetido = False
+        #print(nLista)            
+        return nLista
     
     
+    def getNt(self,valor):
+        '''
+        __________________________________________________________________________________      
+        ► Descripción: 
+        
+        → Método que retorna un nt buscado.            
+        __________________________________________________________________________________    
+        ► Parámetros:                                                                      
+                                                                                          
+        • valor: Valor del nt buscado.          
+        __________________________________________________________________________________
+        '''
+        for i in self.nt:
+            #print (i.getValor())
+            if i.getValor()==valor:
+                return i
+        return False
+                
+            
+            
+#n = GramaticaE("nueva")
+#lista =["S > a A","S > b B","A > A 0","A > A 1","A > 0","B > B s","B > m"]
+#lista = ["S > z M N z","M > a M a","M > z","N > b N b","N > z"]
+
+#n.formatearEntradaTipo2(lista)
+                     

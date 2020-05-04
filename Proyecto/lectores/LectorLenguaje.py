@@ -421,4 +421,7 @@ class LectorLenguaje(object):
         temporal = len(nombre)-temporal
         nombre = nombre[temporal:] 
         self.gramaticaT2.agregarDatos_Masivo(nombre,lista)
+
+
+        
         

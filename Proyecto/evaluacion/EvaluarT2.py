@@ -10,6 +10,8 @@ from metodos.pila import pila
 from tipos.Tipo import Tipo
 from nodos.NodoA import NodoA
 from graphviz import render
+import copy
+import functools
 
 
 class EvaluarT2(object):
@@ -45,6 +47,7 @@ class EvaluarT2(object):
         self.pilaTemp = ["#",self.automata.getInicial().getValor()]
         self.NodosA = []
         self.arbol = ""
+        self.contadorHijo = -1
         
         
     def evaluar(self):
@@ -62,6 +65,7 @@ class EvaluarT2(object):
         stack = pila()
         stack.push("#")
         stack.push(self.automata.getInicial())
+        padreTemp = ""
         for i in range(0,len(self.cadena)):
             avanzar = False
             while not avanzar:
@@ -85,9 +89,10 @@ class EvaluarT2(object):
                         return "Cadena inválida"
                     elif ultimo.getTipo()== Tipo.NOTERMINAL:
                         hijos = ultimo.getHijo()
+
                         for j in hijos:
                             if j[0].getTipo() == Tipo.TERMINAL:
-                                if self.cadena[i] == j[0].getValor():
+                                if self.rec(j,i,self.cadena):
                                     son = self.hijoAtexto(j)
                                     self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),son)
                                     self.pilaTemp.pop()
@@ -99,21 +104,43 @@ class EvaluarT2(object):
                                     leido = True  
                                     #son = self.hijoAtexto(j)
                                     #self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),son)
-                                    
                                     break
                         if not leido:
                             validador = ""
                             for j in hijos:
-                                validador = self.rec(j,self.cadena[i])
+                                validador = self.rec(j,i,self.cadena)
                                 if validador:
-                                    stack.push(j[0])
-                                    self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),j[0].getValor())
-                                    self.pilaTemp.pop()
-                                    self.pilaTemp.append(j[0].getValor())
-                                    self.crearArbol(ultimo,j)
+                                    padreTemp= ultimo.getValor()
+                                    if len(j) > 1:
+                                        for k in reversed(j):
+                                            stack.push(k)
+                                        son = self.hijoAtexto(j)
+                                        self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),son)
+                                        self.pilaTemp.pop()
+                                        for k in reversed(j):
+                                            self.pilaTemp.append(k.getValor())
+                                        self.crearArbol(ultimo,j)
+                                    else:
+                                        stack.push(j[0])
+                                        self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),j[0].getValor())
+                                        #self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),j[0].getValor())
+                                        self.crearArbol(ultimo,j,self.pilaTemp)
+                                        self.pilaTemp.pop()
+                                        self.pilaTemp.append(j[0].getValor())
+                                        
                                     leido = True
                                     #encontrado = True
                                     break
+                                
+                                if j[0].getTipo() == Tipo.EPSILON:
+                                    stack.push(j[0])
+                                    padreTemp = ultimo.getValor()
+                                    self.crearTabla(self.pilaTemp,self.cadena[i:],ultimo.getValor(),j[0].getValor())
+                                    self.crearArbol(ultimo,j)
+                                    self.pilaTemp.pop()
+                                    self.pilaTemp.append(j[0].getValor())
+                                    leido = True                                    
+         
                             if not validador:
                                 self.crearTabla(self.pilaTemp,self.cadena[i:],"Fallido",None)
                                 ultimo = stack.pop()
@@ -131,13 +158,36 @@ class EvaluarT2(object):
                             #print(self.getArbol())
                             self.drawArbol()
                             return "Cadena inválida."
+                    elif ultimo.getTipo()==Tipo.EPSILON:
+                            self.crearTabla(self.pilaTemp,self.cadena[i:],padreTemp,ultimo.getValor())
+                            self.pilaTemp.pop()
+                            leido = True
+                        
                 #if not encontrado:
                     #print (stack.pop().getValor())
-        self.tabla.append("#$"+"--"+"$Q,Λ,#;F,Λ")
         ultimo = stack.pop()
-        self.pilaTemp.pop()
+        try:
+            while ultimo != "#" and ultimo.getTipo() != Tipo.TERMINAL:
+                if ultimo != "#":
+                    epsilon = False
+                    if ultimo.getTipo()==Tipo.NOTERMINAL:
+                        hijos = ultimo.getHijo()
+                        for i in hijos:
+                            if i[0].getTipo()==Tipo.EPSILON:
+                                epsilon = True
+                                self.crearTabla(self.pilaTemp,"--",ultimo.getValor(),i[0].getValor())
+                                self.crearArbol(ultimo,i)
+                                ultimo = stack.pop()
+                                self.pilaTemp.pop()  
+                        if not epsilon:
+                            break     
+        except:
+                print()                             
+        
         #print (ultimo)
         if ultimo == "#":
+            self.tabla.append("#$"+"--"+"$Q,Λ,#;F,Λ")
+            self.pilaTemp.pop()
             self.tabla.append("Λ$"+"--"+"$Aceptación")
             self.guardar(self.tabla)
             #print(self.getArbol())
@@ -145,11 +195,13 @@ class EvaluarT2(object):
             return "Cadena válida."
         else:
             #print(self.getArbol())
+            self.crearTabla(self.pilaTemp,"--","Fallido",ultimo.getValor())
+            self.guardar(self.tabla)
             self.drawArbol()
             return "Cadena inválida."
         
     
-    def rec(self,hijos,char):
+    def rec(self,hijos,charPos,cadena):
         '''
         __________________________________________________________________________________
         ► Descripción:
@@ -164,16 +216,30 @@ class EvaluarT2(object):
         '''  
         hijo = hijos[0]
         if hijo.getTipo()== Tipo.TERMINAL:
-            if hijo.getValor()== char:
-                return True
+            if hijo.getValor()== cadena[charPos]:
+                try:
+                    if hijos[1].getTipo()== Tipo.TERMINAL:
+                        if self.rec(hijos[1:],charPos+1,cadena):
+                            return True
+                        else:
+                            return False
+                    else:
+                        if self.rec(hijos[1:],charPos+1,cadena):
+                            return True
+                        else:
+                            return False
+                except: 
+                    return True
             else:
                 return False
         elif hijo.getTipo() == Tipo.NOTERMINAL:
             for i in hijo.getHijo():
-                val = self.rec(i,char)
+                val = self.rec(i,charPos,cadena)
                 if val:
                     return True
             return False
+        elif hijo.getTipo() == Tipo.EPSILON:
+            return True
 
     def crearTabla(self,p,cadena,padre,hijo):
         '''
@@ -223,11 +289,15 @@ _________________________________________________________
                     #Hijo en posición 4
                     j = i.replace(";",",")
                     j = j.split(",")
-                    if padre == j[2] and hijo == j[4]:
-                        return i
+                    try:
+                        if padre == j[2] and hijo == j[4]:
+                            return i
+                    except:
+                         if padre == j[2] and hijo == j[4]:
+                            return i                       
             else:
                 print("No se qué poner aquí")
-                   
+
         else:
             for i in a:
                 #Padre en posición 2
@@ -284,7 +354,7 @@ _________________________________________________________
         archivo.write(texto)
         archivo.close()
         
-    def crearArbol(self,padre,hijos):
+    def crearArbol(self,padre,hijos,stack=None):
         '''
         __________________________________________________________________________________
         ► Descripción:
@@ -297,7 +367,21 @@ _________________________________________________________
         • hijos =  Los hijos del padre actual.
         __________________________________________________________________________________
         '''  
-        NodoPadre = self.getNodoA(padre.getValor())
+        contador = 0
+        if stack!=None:
+            nuevo = stack.copy()
+            while nuevo:
+                elemento = nuevo.pop()
+                if elemento == padre.getValor():
+                    contador=contador+1
+        if contador > 1:
+            for i in reversed(self.NodosA):
+                if i.getValor()==padre.getValor() and not i.getAsignacion():
+                    NodoPadre = i
+                    break
+        else:
+            NodoPadre = self.getNodoA(padre.getValor())
+        
         if NodoPadre == False:
             NodoPadre = NodoA(padre.getValor())
             NodoPadre.setAsignacion()

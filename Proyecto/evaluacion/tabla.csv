@@ -1,0 +1,13 @@
+PILA$ENTRADA$TRANSICIÓN
+-$ccbcb$I,-,-;P,#
+#$ccbcb$P,-,-;Q,S
+S#$ccbcb$Q,-,S;Q,C
+C#$ccbcb$Q,-,C;Q,ccBb
+ccBb#$ccbcb$Q,c,c;Q,-
+cBb#$cbcb$Q,c,c;Q,-
+Bb#$bcb$Q,-,B;Q,bc
+bcb#$bcb$Q,b,b;Q,-
+cb#$cb$Q,c,c;Q,-
+b#$b$Q,b,b;Q,-
+#$--$Q,-,#;F,-
+-$--$Aceptación

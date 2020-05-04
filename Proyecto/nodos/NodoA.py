@@ -134,4 +134,4 @@ class NodoA(object):
         ''' 
         return self.__asignacion
 
-#n = NodoA("S")
+n = NodoA("S")
